@@ -1,80 +1,135 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
 
-    private Rigidbody rb;
-    private float forwardSpeed = 750f;//Sabit ileri hýz
-    private float lateralSpeed = 300f;//Yön hýzý
+    private Rigidbody rb; // Rigidbody bileþeni
+    private float forwardSpeed = 700f; // Ýleri hýz
+    private float lateralSpeed = 300f; // Yan hýz
+    private float maxLateralRange; // Maksimum yan hareket mesafesi
+    [Header("Magnet Settings")]
+    public bool isMagnetOpen; // Mýknatýs açýk mý?
+    private Vector3 magnetOverlapValues = new Vector3(6, 1, 1);
+    private List<GameObject> collectionCoins = new List<GameObject>();
+    private float magnetPower = 50f;
+    public LayerMask coinLayer;
 
-    private float maxLateralRange;
+    public GameObject finishPanel; // Bitiþ paneli
+    public GameObject platform; // Platform nesnesi
 
 
-
-    public GameObject finishPanel;
-
-
-
-
-    public GameObject plartform;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Start()
     {
-        rb = gameObject.GetComponent<Rigidbody>();
-       CalculateTransformBounds();
-
-
+        rb = GetComponent<Rigidbody>(); // Rigidbody bileþenini al
+        CalculateTransformBounds(); // Platform geniþliðini hesapla
     }
 
-    // Update is called once per frame
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        //ilero doðru sabit haraket
-        rb.AddForce(Vector3.forward * Time.fixedDeltaTime * forwardSpeed);
-
-        float horizantalMove = Input.GetAxis("Horizontal");
-
-        rb.AddForce(Vector3.right * horizantalMove * lateralSpeed * Time.fixedDeltaTime, ForceMode.VelocityChange);
-
-        //Haraketi sýnýrlandýr
-        RestrictLateralMovement();
+        rb.AddForce(Vector3.forward * Time.fixedDeltaTime * forwardSpeed); // Ýleri hareket
+        float horizontalMove = Input.GetAxis("Horizontal"); // Yatay hareket giriþi
+        rb.AddForce(Vector3.right * horizontalMove * lateralSpeed * Time.fixedDeltaTime, ForceMode.VelocityChange); // Yan hareket
+        RestrictLateralMovement(); // Yan hareketi kýsýtla
     }
 
-    public void CalculateTransformBounds()
+    private void CalculateTransformBounds()
     {
-        if (plartform != null)
+        if (platform != null)
         {
-            float plartformWidth = plartform.GetComponent<Renderer>().bounds.size.x;
-            maxLateralRange = (plartformWidth / 2f) + 0.1f;
+            float platformWidth = platform.GetComponent<Renderer>().bounds.size.x; // Platform geniþliðini al
+            maxLateralRange = (platformWidth / 2f) + 0.1f; // Maksimum yan hareket mesafesini hesapla
         }
         else
         {
-            Debug.LogError("Plarform Bulunamadý");
+            Debug.LogError("Platform nesnesi atanmadý!"); // Hata mesajý
         }
     }
-    void RestrictLateralMovement()
+
+    private void RestrictLateralMovement()
     {
-        Vector3 position = rb.position;
-        position.x = Mathf.Clamp(position.x, -maxLateralRange, maxLateralRange);
-        rb.position = position;
+        Vector3 position = rb.position; // Mevcut pozisyonu al
+        position.x = Mathf.Clamp(position.x, -maxLateralRange, maxLateralRange); // Yan hareketi kýsýtla
+        rb.position = position; // Pozisyonu güncelle
 
-        // Yan hareket hýzýný sýfýrla
-        Vector3 velocity = rb.linearVelocity;
-        velocity.x = 0f;
-        rb.linearVelocity = velocity;
+        Vector3 velocity = rb.linearVelocity; // Yeni kullaným: linearVelocity
+        velocity.x = 0f; // Yan hýzý sýfýrla
+        rb.linearVelocity = velocity; // Hýzý güncelle
     }
-
 
     private void OnTriggerEnter(Collider other)
     {
+        if (other.gameObject.CompareTag("Magnet"))
+        {
+            StartCoroutine("MagnetTime");
+                }
         if (other.gameObject.CompareTag("Finish"))
         {
-            Time.timeScale = 0;
-            finishPanel.SetActive(true);       
+            Time.timeScale = 0; // Zamaný durdur
+            finishPanel.SetActive(true); // Bitiþ panelini göster
         }
+    }
+    private IEnumerator MagnetTime()
+    {
+        isMagnetOpen = true;
+        yield return new WaitForSeconds(5f);
+        isMagnetOpen = false;
+            
+    }
+    private void Update()
+    {
+        if (isMagnetOpen)
+        {
+            // Mýknatýs menzili içindeki tüm altýnlarý bul
+            Collider[] magnetGoldColliders = Physics.OverlapBox(
+                gameObject.transform.position,
+                magnetOverlapValues * 0.5f,
+                Quaternion.identity,
+                coinLayer);
 
-                
+            // Yeni altýnlarý toplama listesine ekle
+            foreach (var coinCollider in magnetGoldColliders)
+            {
+                if (coinCollider.GetComponent<GoldController>() != null &&
+                    coinCollider.GetComponent<Rigidbody>() != null &&
+                    !collectionCoins.Contains(coinCollider.gameObject))
+                {
+                    collectionCoins.Add(coinCollider.gameObject);
+                }
+            }
+
+            // Koleksiyon listesindeki tüm altýnlara çekim kuvveti uygula
+            for (int i = collectionCoins.Count - 1; i >= 0; i--)
+            {
+                // Altýn artýk yoksa atla
+                if (collectionCoins[i] == null)
+                {
+                    collectionCoins.RemoveAt(i);
+                    continue;
+                }
+
+                // Oyuncuya doðru yönü hesapla
+                Vector3 direction = (gameObject.transform.position - collectionCoins[i].transform.position).normalized;
+
+                // Altýný oyuncuya doðru hareket ettirmek için kuvvet uygula
+                Rigidbody coinRb = collectionCoins[i].GetComponent<Rigidbody>();
+
+                // Y ekseninin kilitli olduðunu dikkate alarak, sadece X ve Z ekseninde hýz uygula
+                Vector3 horizontalVelocity = new Vector3(direction.x, 0, direction.z).normalized * magnetPower;
+                coinRb.linearVelocity = horizontalVelocity;
+
+                // Ýsteðe baðlý: Görsel efekt için X ve Z eksenlerinde rotasyon ekle
+                coinRb.angularVelocity = new Vector3(5f, 0, 5f);
+            }
+        }
+    }
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(gameObject.transform.position, magnetOverlapValues);
     }
 
 }

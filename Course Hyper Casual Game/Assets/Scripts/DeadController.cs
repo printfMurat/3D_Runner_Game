@@ -2,20 +2,22 @@ using UnityEngine;
 
 public class DeadController : MonoBehaviour
 {
-    public GameObject DeadPanel;
+    private PlayerController playerController;
+    public GameObject deadPanel;
+
     private void Start()
     {
         Time.timeScale = 1f;
+        playerController = GetComponent<PlayerController>();
     }
+
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Obstacle"))
+        if (other.CompareTag("Obstacle"))
         {
             Time.timeScale = 0f;
-            DeadPanel.SetActive(true);
-
+            deadPanel.SetActive(true);
+            
         }
     }
 }
-
-

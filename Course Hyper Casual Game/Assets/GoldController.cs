@@ -1,20 +1,20 @@
-using TMPro;
-using UnityEngine;
+    using TMPro;
+    using UnityEngine;
 
-public class GoldController : MonoBehaviour
-{
-    private GoldManager goldManager; // GoldController referansý
+    public class GoldController : MonoBehaviour
+    {
+        private GoldManager playerGoldManager; // GoldController referansý
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.CompareTag("Player"))
         {
-            if(other.GetComponent<GoldManager>() != null)
+            if (other.GetComponent<GoldManager>() != null)
             {
-                goldManager = other.GetComponent<GoldManager>();
+                playerGoldManager = other.GetComponent<GoldManager>();
+                playerGoldManager.AddGold(1); // Oyuncuya altýn ekle
+                Destroy(gameObject); // Altýný yok et
             }
-            goldManager.AddGold(1); // GoldController üzerinden altýný ekle
-            Destroy(gameObject); // Altýný yok et
         }
     }
 }

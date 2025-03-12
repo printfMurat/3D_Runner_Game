@@ -9,11 +9,12 @@ TagManager:
   - Obstacle
   - Obstcales
   - Gold
+  - Magnet
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Gold
   - Water
   - UI
   - 
