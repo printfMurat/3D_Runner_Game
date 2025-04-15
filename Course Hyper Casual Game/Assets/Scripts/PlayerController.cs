@@ -3,11 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Lumin;
 
 public class PlayerController : MonoBehaviour
 {
-
-    private Rigidbody rb; // Rigidbody bileþeni
+    //[Header("Physic Settings")]
+    [HideInInspector]
+    public Rigidbody rb; // Rigidbody bileþeni
     private float forwardSpeed = 700f; // Ýleri hýz
     private float lateralSpeed = 300f; // Yan hýz
     private float maxLateralRange; // Maksimum yan hareket mesafesi
@@ -17,15 +19,23 @@ public class PlayerController : MonoBehaviour
     private List<GameObject> collectionCoins = new List<GameObject>();
     private float magnetPower = 50f;
     public LayerMask coinLayer;
+    public ParticleSystem ringParticle;
 
     public GameObject finishPanel; // Bitiþ paneli
     public GameObject platform; // Platform nesnesi
+
+    public Animator anim;
+
+
+    private bool isFinish = false;
 
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>(); // Rigidbody bileþenini al
         CalculateTransformBounds(); // Platform geniþliðini hesapla
+        anim = GetComponentInChildren<Animator>();
+
     }
 
     private void FixedUpdate()
@@ -57,7 +67,7 @@ public class PlayerController : MonoBehaviour
 
         Vector3 velocity = rb.linearVelocity; // Yeni kullaným: linearVelocity
         velocity.x = 0f; // Yan hýzý sýfýrla
-        rb.linearVelocity = velocity; // Hýzý güncelle
+        rb.linearVelocity = velocity; // Hýzý güncelle              
     }
 
     private void OnTriggerEnter(Collider other)
@@ -65,11 +75,12 @@ public class PlayerController : MonoBehaviour
         if (other.gameObject.CompareTag("Magnet"))
         {
             StartCoroutine("MagnetTime");
-                }
+            Destroy(other.gameObject);
+        }
         if (other.gameObject.CompareTag("Finish"))
         {
-            Time.timeScale = 0; // Zamaný durdur
-            finishPanel.SetActive(true); // Bitiþ panelini göster
+            FinishMethod();
+
         }
     }
     private IEnumerator MagnetTime()
@@ -77,7 +88,7 @@ public class PlayerController : MonoBehaviour
         isMagnetOpen = true;
         yield return new WaitForSeconds(5f);
         isMagnetOpen = false;
-            
+
     }
     private void Update()
     {
@@ -125,11 +136,33 @@ public class PlayerController : MonoBehaviour
                 coinRb.angularVelocity = new Vector3(5f, 0, 5f);
             }
         }
+        if (isMagnetOpen && !ringParticle.isPlaying)
+        {
+            ringParticle.Play();
+        }
+        else if (!isMagnetOpen && ringParticle.isPlaying)
+        {
+            ringParticle.Stop();
+        }
     }
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireCube(gameObject.transform.position, magnetOverlapValues);
+    }
+    private void FinishMethod()
+    {
+
+        StartCoroutine(FinishAnimation());
+
+    }
+    public IEnumerator FinishAnimation()
+    {
+        rb.isKinematic = true;
+        anim.SetBool("isFinish", true);
+        yield return new WaitForSeconds(5f);
+        Time.timeScale = 0;
+        finishPanel.SetActive(true);
     }
 
 }
